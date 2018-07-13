@@ -6,6 +6,7 @@ use Getopt::Long;
 use MIME::Base64 qw/encode_base64 decode_base64/;
 use POSIX;
 use File::Slurp;
+use Time::HiRes qw/usleep/;
 
 use feature 'say';
 
@@ -148,21 +149,25 @@ sub traverse {
 	} 
 }
 
-sub decode_next_symbol {
-	my ($code_table, $string, $current) = @_;
+sub decode_symbols {
+	my ($code_table, $string) = @_;
 
-	unless(scalar @{$string} <=0) {
+	my $len = 1;
+	my $inflated;
 
-		$current .= shift @{$string};
-		my $key = "$current:";
-
-		if($code_table->{$key}) {
-			return $code_table->{$key};
+	while (length($string) > 0) {
+		my $sym = substr($string, 0, $len); 
+		
+		if(exists $code_table->{"$sym:"}) {
+			$inflated .= $code_table->{"$sym:"};
+			$string=~s/^$sym//;
+			$len=0;
+		} else {
+			$len++;
 		}
-
-		return decode_next_symbol($code_table, $string, $current);
 	}
 
+	return $inflated;
 }
 
 sub compress {
@@ -233,14 +238,8 @@ sub inflate {
 	
 	$data = substr($data, 0, $data_length_in_bits);
 
-	my $data_elements = [ split("", $data) ];
+	my $inflated_data = decode_symbols($code_table, $data);
 
-	my $inflated_data;
-
-	while(scalar @{$data_elements} > 0) {
-		$inflated_data .=  decode_next_symbol($code_table, $data_elements, "");
-	}
-say $inflated_data;
 	open OUT, ">>$out";
 	print OUT $inflated_data;
 	close OUT;
