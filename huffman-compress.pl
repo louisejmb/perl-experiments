@@ -226,13 +226,11 @@ sub inflate {
 
 	$code_table = eval( decode_base64($code_table) );
 
-	say Dumper $code_table;
-
-	local $\ = undef;
-
 	binmode INFLATE;
 
-	$data = <INFLATE>;
+	while(<INFLATE>) {
+		$data = $_;
+	}
 
 	$data = unpack("B*", $data);	
 	
